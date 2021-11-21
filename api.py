@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import threading, time, random
 from flask import Flask, Response
 from flask_restful import Api, Resource
@@ -17,7 +18,7 @@ class increment(Resource):
         time.sleep(2)
         counter+=1
         
-        return 200
+        return {"counter": counter}
     
     
 
