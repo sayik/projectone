@@ -30,7 +30,7 @@ const updateCounter = (state) => [
   [
     putJson,
     {
-      url: API_DOMAIN+"counter/increment",
+      url: API_DOMAIN+"counter",
       action: GotCounter,
       data: {}
     }
@@ -39,7 +39,7 @@ const updateCounter = (state) => [
 
 const initState = (state) => [
   { count: null },
-  jsonFetcher(API_DOMAIN+"counter/read", GotCounter)
+  jsonFetcher(API_DOMAIN+"counter", GotCounter)
 ]
 
 app({
