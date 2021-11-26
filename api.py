@@ -5,13 +5,18 @@ import string
 import pyseto
 
 from random import choice
-from pyseto import Key
+from pyseto import Key, Paseto
 from flask import Flask, request
 from flask_restful import Api, Resource, reqparse
 from flask_cors import CORS
 
 from functools import wraps
 from flask import abort
+
+from flask_jwt_extended import JWTManager
+from flask_jwt_extended import (create_access_token, create_refresh_token,
+                                jwt_required,
+                                get_jwt_identity, verify_jwt_in_request, get_jwt)
 
 
 def authorize(f):
@@ -20,47 +25,36 @@ def authorize(f):
         if 'Authorization' not in request.headers:
             abort(401)
 
-        user = None
-        data = request.headers['Authorization'].encode('ascii', 'ignore')
-        token = str.replace(str(data), 'Bearer ', '')
-        decoded = pyseto.decode(paseto_key, token, deserializer=json)
         try:
-            print(decoded)
-        except:
+            result = verify_jwt_in_request()
+            claims = get_jwt()
+            print(result, claims)
+            user = claims["sub"]
+            print(user)
+        except Exception as e:
+            print(e)
             abort(401)
 
         return f(*args, **kws)
     return decorated_function
 
 
-def secret_token(length=32):
-    return "".join(
-        [choice(string.digits + string.ascii_letters) 
-            for _ in range(length)]
-    ).encode()
-
-
-def create_paseto(key, username):
-    token = pyseto.encode(
-        key,
-        {"username": username},
-        serializer=json,
-        exp=3600,
-    )
-    return token.decode()
-
-
 app = Flask(__name__)
+
 api = Api(app)
-counter = 0
+
+jwt = JWTManager(app)
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = 360
+app.config['JWT_SECRET_KEY'] = "A" * 128
 
 cors = CORS(app)
 
+
+counter = 0
 STORE = {
     "username": "password",
 }
 
-paseto_key = Key.new(version=4, purpose="local", key=secret_token())
 
 
 parser = reqparse.RequestParser(bundle_errors=True)
@@ -86,18 +80,23 @@ class Login(Resource):
 
         if username in STORE.keys():
             if password == STORE[username]:
-                return {"status": "login", "token": create_paseto(paseto_key, username)}, 200
+
+                access_token = create_access_token(identity=username)
+                refresh_token = create_refresh_token(identity=username)
+                return {
+                    'status': f'Logged in as {username}',
+                    'access_token': access_token,
+                    'refresh_token': refresh_token
+                }, 200
             else:
-                return {"status": "login failure"}, 404
+                return {"status": "login failure"}, 401
         else:
-            return {"status": "login failure"}, 404
-
-
+            return {"status": "login failure"}, 401
 
 
 class Counter(Resource):
-    decorators = [authorize]
 
+    @authorize
     def put(self):
         global counter
         time.sleep(2)
